@@ -1,0 +1,43 @@
+name: Import Solar Voyager source
+
+on:
+  push:
+    paths: [solar-voyager-github.zip, .github/workflows/import-source.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Expand reviewed source archive
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          roots = {"README.md", "LICENSE", "server.mjs", "package.json", ".gitignore", "dist", "tests", "scripts"}
+          with ZipFile("solar-voyager-github.zip") as archive:
+              for entry in archive.infolist():
+                  path = Path(entry.filename)
+                  if entry.is_dir() or path.parts[0] != "solar-voyager":
+                      continue
+                  relative = Path(*path.parts[1:])
+                  if relative.parts[0] not in roots or ".." in relative.parts:
+                      continue
+                  relative.parent.mkdir(parents=True, exist_ok=True)
+                  relative.write_bytes(archive.read(entry))
+          PY
+          node --check dist/js/main.js
+          node tests/ephemeris.test.mjs
+      - name: Commit complete source tree
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm solar-voyager-github.zip
+          git add README.md LICENSE server.mjs package.json .gitignore dist tests scripts
+          git commit -m "Expand complete open-source project"
+          git push
