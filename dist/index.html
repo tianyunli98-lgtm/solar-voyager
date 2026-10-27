@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#080b10">
+  <meta name="description" content="驾驶飞船探索真实尺度的太阳系。自由调整航速与时间，近距离观察行星，用开源天文计算重现它们的位置。">
+  <title>星间 · Solar Voyager</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23090d13'/%3E%3Cellipse cx='32' cy='32' rx='25' ry='10' transform='rotate(-35 32 32)' fill='none' stroke='%23e4bd81' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='9' fill='%23e4bd81'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="universe" aria-label="可交互三维太阳系，拖动改变视角" tabindex="0"></canvas>
+  <div id="labels" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <header class="topbar hud">
+    <a class="brand" href="./" aria-label="星间 Solar Voyager 首页">
+      <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="8" fill="currentColor"/><ellipse cx="24" cy="24" rx="22" ry="8" transform="rotate(-38 24 24)" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="42" cy="11" r="2.4" fill="currentColor"/></svg>
+      <span class="brand-name">星间<span>SOLAR VOYAGER</span></span>
+      <span class="version">BETA 01</span>
+    </a>
+    <nav class="main-nav" aria-label="探索模式">
+      <button id="exploreTab" class="nav-button active" type="button"><span class="nav-orbit">◉</span> 探索太阳系</button>
+      <button id="flightTab" class="nav-button" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 7 15-7-3-7 3Z"/></svg> 飞船驾驶</button>
+    </nav>
+    <div class="header-actions">
+      <span class="connection"><i></i> 系统在线</span>
+      <button id="helpBtn" class="icon-button" type="button" title="操作指南" aria-label="打开操作指南"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M7.8 7.5a2.3 2.3 0 0 1 4.5.5c0 1.7-2.3 1.6-2.3 3.2M10 14h.01"/></svg></button>
+      <button id="settingsBtn" class="icon-button" type="button" title="显示设置" aria-label="打开显示设置"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3v14M10 3v14M16 3v14M1.5 7h5M7.5 13h5M13.5 6h5"/></svg></button>
+    </div>
+  </header>
+
+  <aside class="destination-panel panel hud" aria-label="目的地列表">
+    <div class="panel-eyebrow"><span>航行目录</span><span class="small-mono">SOL SYSTEM</span></div>
+    <div class="panel-heading"><h1>太阳系</h1><span class="count-badge">10 个天体</span></div>
+    <label class="search-box"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><input id="planetSearch" type="search" placeholder="搜索目的地…" autocomplete="off" aria-label="搜索天体"></label>
+    <div class="list-caption"><span>天体</span><span>日心距离</span></div>
+    <div id="planetList" class="planet-list"></div>
+    <div class="scale-note"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m3 13 10-10 4 4L7 17Z M8 8l2 2M11 5l2 2M5 11l2 2"/></svg><span>真实比例 · 天文星历位置</span></div>
+  </aside>
+
+  <div class="scene-caption hud"><span class="location-dot"></span><span>太阳系</span><span class="crumb-slash">/</span><strong id="breadcrumbTarget">地球</strong><span class="scene-tag">实时模拟</span></div>
+  <div class="compass hud" aria-hidden="true"><span>270</span><i></i><span>W</span><i></i><span>300</span><i></i><b>⌄</b><i></i><span>330</span><i></i><span>N</span><i></i><span>030</span></div>
+  <div class="reticle hud" aria-hidden="true"><i></i><i></i><i></i><i></i><span></span></div>
+  <div class="viewport-hint hud"><span class="mouse-icon"></span> 拖动环绕 · 滚轮缩放 <span class="hint-divider">/</span> <kbd>F</kbd> 聚焦目标</div>
+
+  <aside class="right-column hud" aria-label="当前天体详情">
+    <section class="minimap-panel panel">
+      <div class="map-header"><span class="panel-eyebrow">轨道导航</span><button id="mapBtn" class="text-button" type="button">全景星图 <span>↗</span></button></div>
+      <canvas id="minimap" width="500" height="230" aria-label="太阳系俯视导航图"></canvas>
+      <div class="map-scale"><span>日心 · 俯视</span><span>距离对数缩放</span></div>
+    </section>
+    <section class="target-panel panel">
+      <div class="target-kicker"><span><i></i> 已选择目标</span><span id="selectedType">类地行星</span></div>
+      <h2 id="selectedName">地球</h2><div id="selectedEn" class="target-english">EARTH</div>
+      <p id="selectedDesc" class="target-description">我们的蓝色家园。穿过薄薄的大气层，俯瞰海洋、大陆与流动的云层。</p>
+      <dl class="target-stats"><div><dt>赤道半径</dt><dd id="selectedRadius">6,378 <span>km</span></dd></div><div><dt>日心距离</dt><dd id="selectedDistance">1.000 <span>AU</span></dd></div><div><dt>公转周期</dt><dd id="selectedPeriod">365.26 <span>天</span></dd></div></dl>
+      <button id="goBtn" class="primary-button" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 6 15-6-3-6 3Z"/></svg> 一键抵达 <span>↗</span></button>
+      <button id="orbitBtn" class="secondary-button" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><ellipse cx="10" cy="10" rx="8" ry="4" transform="rotate(-30 10 10)"/><circle cx="10" cy="10" r="2.5"/></svg> 环绕观察</button>
+    </section>
+  </aside>
+
+  <section class="flight-status hud" aria-label="航行状态">
+    <div class="status-kicker"><span class="live-dot"></span><span id="modeLabel">环绕观察</span></div>
+    <div class="telemetry"><div><span class="telemetry-label">距目标表面</span><strong id="altitudeValue">— <small>km</small></strong></div><div><span class="telemetry-label">当前航速</span><strong id="velocityValue">0 <small>km/s</small></strong></div></div>
+    <div class="flight-keyhint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>移动</span><kbd>Shift</kbd><span>加速</span></div>
+  </section>
+
+  <section class="speed-panel panel hud" aria-label="航速控制">
+    <div class="speed-heading"><span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 15a8 8 0 1 1 14 0M10 11l4-5"/><circle cx="10" cy="11" r="1.5"/></svg> 巡航速度</span><strong id="speedValue">100 <small>km/s</small></strong></div>
+    <input id="speedSlider" class="range-slider" type="range" min="-1" max="8" step="0.01" value="2" aria-label="巡航速度，对数刻度，单位千米每秒">
+    <div class="speed-ticks"><span>0.1 km/s</span><span>光速</span><span>334 c</span></div>
+    <div class="speed-bottom"><div class="speed-presets"><button type="button" data-speed="1">1 km/s</button><button type="button" data-speed="100" class="active">100 km/s</button><button type="button" data-speed="299792.458">1 c</button><button type="button" data-speed="29979245.8">100 c</button></div><button id="flightBtn" class="flight-button" type="button">开始驾驶 <span>→</span></button></div>
+  </section>
+
+  <section class="time-panel panel hud" aria-label="模拟时间">
+    <div class="time-heading"><span class="panel-eyebrow">星历时间 <span class="utc-badge">UTC</span></span><button id="nowBtn" class="text-button" type="button">现在 ↺</button></div>
+    <label class="date-label"><input id="dateInput" type="datetime-local" min="1700-01-01T00:00" max="2200-12-31T23:59" step="60" aria-label="模拟日期和时间，UTC"></label>
+    <div class="time-controls"><button id="playBtn" class="play-button" type="button" aria-label="暂停时间" title="播放或暂停时间">Ⅱ</button><select id="timeRate" aria-label="时间流速"><option value="0">时间暂停</option><option value="1" selected>实时 · 1×</option><option value="3600">1 小时 / 秒</option><option value="86400">1 天 / 秒</option><option value="2592000">30 天 / 秒</option></select></div>
+  </section>
+
+  <footer class="bottom-bar hud"><div class="display-toggles"><label><input id="labelsToggle" type="checkbox" checked><span class="toggle-check"></span> 天体标签</label><label><input id="orbitsToggle" type="checkbox" checked><span class="toggle-check"></span> 轨道线</label></div><div class="footer-center"><span id="utcClock">UTC</span><i></i><span>为好奇心而航行</span></div><div class="footer-actions"><a id="sourceLink" href="source.zip" download title="下载开源代码">&lt;/&gt; 开源代码</a><span class="footer-divider"></span><button id="screenshotBtn" class="icon-button" type="button" aria-label="保存当前画面" title="保存画面"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h4l1-2h4l1 2h4v11H3Z"/><circle cx="10" cy="10.5" r="3"/></svg></button><button id="fullscreenBtn" class="icon-button" type="button" aria-label="切换全屏" title="全屏"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3H3v4M13 3h4v4M3 13v4h4M17 13v4h-4"/></svg></button></div></footer>
+
+  <div class="mobile-tools hud"><button id="destinationsToggle" type="button">☷ 目的地</button><button id="infoToggle" type="button">ⓘ 天体详情</button></div>
+  <div class="touch-controls hud" aria-label="触屏飞行控制"><div><button data-control="KeyQ" aria-label="下降">−</button><button data-control="KeyW" aria-label="向前">↑</button><button data-control="KeyE" aria-label="上升">＋</button></div><div><button data-control="KeyA" aria-label="向左">←</button><button data-control="KeyS" aria-label="向后">↓</button><button data-control="KeyD" aria-label="向右">→</button></div></div>
+
+  <div id="loading" class="loading-screen" role="status"><div class="loading-orbit"><span></span><i></i></div><strong>星间</strong><span class="loading-subtitle">SOLAR VOYAGER</span><p id="loadingText">正在校准星图与航行系统…</p><div class="loading-track"><i></i></div></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="helpDialog" class="modal"><div class="modal-heading"><div><span class="panel-eyebrow">FLIGHT MANUAL</span><h2>准备好，出发。</h2></div><button id="helpClose" class="icon-button close-button" aria-label="关闭操作指南" type="button">×</button></div><p class="modal-intro">选择一颗行星，一键抵达。或接管飞船，把太阳系交给自己的好奇心。</p><div class="manual-grid"><div><kbd>W A S D</kbd><span>前后与左右移动</span></div><div><kbd>Q / E</kbd><span>下降 / 上升</span></div><div><kbd>↑ ↓ ← →</kbd><span>转动飞船视角</span></div><div><kbd>Shift</kbd><span>临时加速 10 倍</span></div><div><kbd>Space</kbd><span>制动</span></div><div><kbd>F</kbd><span>聚焦所选天体</span></div><div><kbd>H</kbd><span>显示 / 隐藏界面</span></div><div><kbd>Esc</kbd><span>退出驾驶 / 关闭窗口</span></div></div><div class="manual-note"><span>鼠标操作</span><p>按住画面拖动视角；环绕模式下滚轮调整观察距离，驾驶模式下滚轮调整航速。触屏可拖动视角，并使用方向按钮飞行。</p></div><div class="manual-note"><span>跨越真实距离</span><p>太阳系使用真实尺度。远距离旅行可调至光速以上；这里的飞船是自由探索相机，不模拟引力推进或相对论效应。</p></div></dialog>
+
+  <dialog id="settingsDialog" class="modal"><div class="modal-heading"><div><span class="panel-eyebrow">OBSERVATION SETTINGS</span><h2>观察设置</h2></div><button id="settingsClose" class="icon-button close-button" aria-label="关闭设置" type="button">×</button></div><label class="setting-row"><span>画面曝光<small>调整行星表面明暗</small></span><input id="exposureSlider" type="range" min="0.3" max="2" step="0.05" value="1" aria-label="画面曝光"></label><label class="setting-row"><span>渲染精度<small>较低精度可提升流畅度</small></span><select id="qualitySelect"><option value="1">流畅 · 1×</option><option value="1.5" selected>均衡 · 1.5×</option><option value="2">精细 · 2×</option></select></label><div class="science-note"><span class="panel-eyebrow">关于这个太阳系</span><p>行星位置由 Astronomy Engine 计算，采用日心黄道坐标，支持 1700—2200 年。其设计目标是约 1 角分的天文计算精度。显示同一时刻的几何位置，未计光行时与光行差。</p><p>行星距离和半径保持真实比例，导航图采用距离对数缩放。行星表面使用地图纹理；云层、光照和自转为视觉近似，不代表所选时刻的实时天气或精确地表朝向。</p><p>飞船允许超光速探索。轨道曲线用于辅助观察；星空背景为艺术化星场。</p><a href="ASSET-LICENSES.md" target="_blank" rel="noopener">纹理：Solar System Scope / INOVE · CC BY 4.0 ↗</a></div></dialog>
+
+  <noscript><div class="noscript">请启用 JavaScript 以启动三维太阳系。</div></noscript>
+  <script src="vendor/astronomy.browser.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
+
+

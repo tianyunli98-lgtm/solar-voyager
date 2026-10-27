@@ -1,0 +1,9 @@
+{
+  "name": "solar-voyager",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Open-source real-scale solar system flight explorer",
+  "license": "MIT",
+  "scripts": { "start": "node server.mjs", "test": "node tests/ephemeris.test.mjs" }
+}

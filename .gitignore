@@ -1,0 +1,9 @@
+node_modules/
+.openai/
+dist/source.zip
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+.env
+.env.*
